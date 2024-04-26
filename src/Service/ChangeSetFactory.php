@@ -2,6 +2,8 @@
 
 namespace Adt\DoctrineLoggable\Service;
 
+use RecursiveArrayIterator;
+use RecursiveIteratorIterator;
 use Adt\DoctrineLoggable\ChangeSet AS CS;
 use Adt\DoctrineLoggable\Annotations AS DLA;
 use Adt\DoctrineLoggable\Entity\LogEntry;
@@ -246,7 +248,18 @@ class ChangeSetFactory
 						$clearedOldData = $clearedNewData = [];
 
 						foreach ($propertyChangeSet[0] as $key => $value) {
-							if (array_key_exists($key, $propertyChangeSet) && $propertyChangeSet[1][$key] !== $value) {
+							if (is_array($value)) {
+								$flattenSubArrOld = $this->flattenArr($propertyChangeSet[0]);
+								$flattenSubArrNew = $this->flattenArr($propertyChangeSet[1]);
+
+								foreach ($flattenSubArrOld as $subKey => $subValue) {
+									if (isset($flattenSubArrNew[$subKey]) && $flattenSubArrNew[$subKey] !== $subValue) {
+										$clearedOldData[$subKey] = $subValue;
+										$clearedNewData[$subKey] = $flattenSubArrNew[$subKey];
+									}
+								}
+							}
+							elseif (array_key_exists($key, $propertyChangeSet[1]) && $propertyChangeSet[1][$key] !== $value) {
 								$clearedOldData[$key] = $value;
 								$clearedNewData[$key] = $propertyChangeSet[1][$key];
 							}
@@ -567,5 +580,14 @@ class ChangeSetFactory
 		$this->em = $em;
 		$this->uow = $this->em->getUnitOfWork();
 		return $this;
+	}
+
+	private function flattenArr(array $items): array
+	{
+		return iterator_to_array(
+			new RecursiveIteratorIterator(
+				new RecursiveArrayIterator($items)
+			)
+		);
 	}
 }
